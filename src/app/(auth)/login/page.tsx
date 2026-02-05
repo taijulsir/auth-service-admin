@@ -39,7 +39,10 @@ const loginSchema = z.object({
 
 export default function LoginPage() {
     const [isLoading, setIsLoading] = useState(false)
-    const { login } = useAuth()
+    const [requiresMFA, setRequiresMFA] = useState(false)
+    const [mfaToken, setMfaToken] = useState("")
+    const [mfaCode, setMfaCode] = useState("")
+    const { login, verifyMFA } = useAuth()
 
     const form = useForm<z.infer<typeof loginSchema>>({
         resolver: zodResolver(loginSchema),
@@ -48,18 +51,71 @@ export default function LoginPage() {
             password: "",
         },
     })
-
     async function onSubmit(values: z.infer<typeof loginSchema>) {
         setIsLoading(true)
         try {
-            await login(values.email, values.password)
-            toast.success("Login successful!")
+            const res = await login(values.email, values.password)
+            if (res?.requiresMFA) {
+                setRequiresMFA(true)
+                setMfaToken(res.mfaToken!)
+                toast.info("Two-Factor Authentication required")
+            } else {
+                toast.success("Login successful!")
+            }
         } catch (error) {
             toast.error("Invalid email or password.")
             console.error(error)
         } finally {
             setIsLoading(false)
         }
+    }
+
+    async function onVerifyMFA(e: React.FormEvent) {
+        e.preventDefault()
+        setIsLoading(true)
+        try {
+            await verifyMFA(mfaToken, mfaCode)
+            toast.success("MFA Verified!")
+        } catch (error) {
+            toast.error("Invalid MFA code.")
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
+    if (requiresMFA) {
+        return (
+            <div className="flex h-screen w-screen items-center justify-center bg-slate-50 dark:bg-slate-900 p-4">
+                <Card className="w-full max-w-[400px]">
+                    <CardHeader>
+                        <CardTitle className="text-2xl text-center">verify identity</CardTitle>
+                        <CardDescription className="text-center">
+                            Enter the 6-digit code from your authenticator app
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <form onSubmit={onVerifyMFA} className="space-y-4">
+                            <Input 
+                                placeholder="000000" 
+                                value={mfaCode}
+                                onChange={(e) => setMfaCode(e.target.value)}
+                                maxLength={6}
+                                className="text-center text-2xl tracking-widest"
+                            />
+                            <Button className="w-full" type="submit" disabled={isLoading || mfaCode.length < 6}>
+                                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Verify
+                            </Button>
+                        </form>
+                    </CardContent>
+                    <CardFooter>
+                        <Button variant="ghost" className="w-full" onClick={() => setRequiresMFA(false)}>
+                            Back to login
+                        </Button>
+                    </CardFooter>
+                </Card>
+            </div>
+        )
     }
 
     return (

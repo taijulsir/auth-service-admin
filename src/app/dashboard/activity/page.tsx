@@ -1,37 +1,48 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import DashboardLayout from "@/components/layout/dashboard-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { DataTable } from "@/components/ui/data-table"
 import { ColumnDef } from "@tanstack/react-table"
 import { Badge } from "@/components/ui/badge"
+import { Loader2 } from "lucide-react"
+import { useAxiosPrivate } from "@/hooks/use-axios-private"
+import { auditService } from "@/lib/api/services/audit.service"
+import { toast } from "sonner"
 
 interface ActivityLog {
-    id: string
-    user: string
+    _id: string
+    userId: {
+        _id: string
+        email: string
+    }
     action: string
-    target: string
-    timestamp: string
-    status: "SUCCESS" | "WARNING" | "FAILURE"
+    resource: string
+    status: "success" | "failure"
+    ipAddress: string
+    userAgent: string
+    createdAt: string
 }
 
 const columns: ColumnDef<ActivityLog>[] = [
     {
-        accessorKey: "timestamp",
+        accessorKey: "createdAt",
         header: "Time",
-        cell: ({ row }) => <div className="text-xs text-muted-foreground">{new Date(row.getValue("timestamp")).toLocaleString()}</div>
+        cell: ({ row }) => <div className="text-xs text-muted-foreground">{new Date(row.getValue("createdAt")).toLocaleString()}</div>
     },
     {
-        accessorKey: "user",
-        header: "Admin/User",
-        cell: ({ row }) => <div className="font-medium">{row.getValue("user")}</div>
+        accessorKey: "userId.email",
+        header: "User",
+        cell: ({ row }) => <div className="font-medium">{(row.original.userId as any)?.email || 'Unknown'}</div>
     },
     {
         accessorKey: "action",
         header: "Action",
+        cell: ({ row }) => <Badge variant="outline">{row.getValue("action")}</Badge>
     },
     {
-        accessorKey: "target",
+        accessorKey: "resource",
         header: "Resource",
     },
     {
@@ -40,24 +51,40 @@ const columns: ColumnDef<ActivityLog>[] = [
         cell: ({ row }) => {
             const status = row.getValue("status") as string
             return (
-                <Badge variant={status === "SUCCESS" ? "default" : status === "WARNING" ? "secondary" : "destructive"}>
-                    {status}
+                <Badge variant={status === "success" ? "default" : "destructive"}>
+                    {status.toUpperCase()}
                 </Badge>
             )
         }
+    },
+    {
+        accessorKey: "ipAddress",
+        header: "IP Address",
+        cell: ({ row }) => <div className="text-xs font-mono">{row.getValue("ipAddress")}</div>
     }
 ]
 
-const mockLogs: ActivityLog[] = [
-    { id: "1", user: "admin@dashboard.com", action: "USER_LOGIN", target: "System", timestamp: new Date().toISOString(), status: "SUCCESS" },
-    { id: "2", user: "admin@dashboard.com", action: "PRODUCT_UPDATE", target: "MacBook Pro 14", timestamp: new Date(Date.now() - 1000 * 60 * 15).toISOString(), status: "SUCCESS" },
-    { id: "3", user: "manager@dashboard.com", action: "USER_CREATE", target: "New Hire John", timestamp: new Date(Date.now() - 1000 * 60 * 60).toISOString(), status: "SUCCESS" },
-    { id: "4", user: "admin@dashboard.com", action: "SECURITY_SETTINGS_CHANGE", target: "Firewall", timestamp: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(), status: "WARNING" },
-    { id: "5", user: "viewer@dashboard.com", action: "EXPORT_CSV", target: "Revenue Report", timestamp: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(), status: "SUCCESS" },
-    { id: "6", user: "unknown_ip", action: "FAILED_LOGIN", target: "admin@dashboard.com", timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(), status: "FAILURE" },
-]
-
 export default function ActivityLogsPage() {
+    const [logs, setLogs] = useState<ActivityLog[]>([])
+    const [isLoading, setIsLoading] = useState(true)
+    const axiosPrivate = useAxiosPrivate()
+
+    useEffect(() => {
+        const fetchLogs = async () => {
+            try {
+                const response = await auditService.getLogs()
+                setLogs(response.logs || [])
+            } catch (error) {
+                console.error("Failed to fetch audit logs:", error)
+                toast.error("Failed to load activity logs")
+            } finally {
+                setIsLoading(false)
+            }
+        }
+
+        fetchLogs()
+    }, [axiosPrivate])
+
     return (
         <DashboardLayout>
             <div className="flex flex-col gap-8">
@@ -66,7 +93,18 @@ export default function ActivityLogsPage() {
                     <p className="text-muted-foreground">Detailed history of all administrative actions and system events.</p>
                 </div>
 
-                <DataTable columns={columns} data={mockLogs} filterColumn="action" filterPlaceholder="Search by action..." />
+                {isLoading ? (
+                    <div className="flex h-[400px] items-center justify-center">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                ) : (
+                    <DataTable 
+                        columns={columns} 
+                        data={logs} 
+                        filterColumn="action" 
+                        filterPlaceholder="Search by action..." 
+                    />
+                )}
             </div>
         </DashboardLayout>
     )

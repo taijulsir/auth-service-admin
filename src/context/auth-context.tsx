@@ -17,10 +17,11 @@ interface User {
 }
 
 interface AuthContextType {
-    user: User | null
-    setUser: React.Dispatch<React.SetStateAction<User | null>>
+    user: any | null // Using any for flexibility with the new User type
+    setUser: React.Dispatch<React.SetStateAction<any | null>>
     isLoading: boolean
-    login: (email: string, password: string) => Promise<void>
+    login: (email: string, password: string) => Promise<{ requiresMFA?: boolean, mfaToken?: string } | void>
+    verifyMFA: (mfaToken: string, token: string) => Promise<void>
     logout: () => void
     isAuthenticated: boolean
 }
@@ -28,14 +29,11 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-    const [user, setUser] = useState<User | null>(null)
+    const [user, setUser] = useState<any | null>(null)
     const [isLoading, setIsLoading] = useState(true)
     const router = useRouter()
 
     useEffect(() => {
-        // We shouldn't store User in localStorage if it contains sensitive data,
-        // but for now, we'll keep it for persistence of basic info.
-        // The middleware uses "jwt" or specific cookie for session check.
         const checkAuth = async () => {
             try {
                 const storedUser = localStorage.getItem("auth_user")
@@ -48,29 +46,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 setIsLoading(false)
             }
         }
-
         checkAuth()
     }, [])
+
+    const handleSuccessLogin = (data: any) => {
+        const userData = {
+            id: data.user?.id || data.user?._id || 'admin',
+            email: data.user?.email || 'admin@example.com',
+            roles: data.roles || [],
+            accessToken: data.accessToken,
+            is2FAEnabled: data.user?.is2FAEnabled
+        }
+
+        Cookies.set("auth_session", "true", { expires: 1 })
+        localStorage.setItem("auth_user", JSON.stringify(userData))
+        setUser(userData)
+        router.push("/dashboard")
+    }
 
     const login = async (email: string, password: string) => {
         setIsLoading(true)
         try {
-            const response = await api.post('/consumer/auth/login', { email, password });
+            const response = await api.post('/admin/auth/login', { email, pwd: password });
             
-            const userData: User = {
-                id: response.data.user.id || response.data.user._id,
-                name: response.data.user.name || 'User',
-                email: response.data.user.email,
-                role: response.data.user.roles[0] === 2001 ? "ADMIN" : "USER", // Map numeric roles to strings if needed
-                avatar: response.data.user.avatar,
-                accessToken: response.data.accessToken
+            if (response.data.requiresMFA) {
+                return { 
+                    requiresMFA: true, 
+                    mfaToken: response.data.mfaToken 
+                }
             }
 
-            // Set session cookie for middleware (backend sets the refresh token cookie)
-            Cookies.set("auth_session", "true", { expires: 1 })
-            localStorage.setItem("auth_user", JSON.stringify(userData))
-            setUser(userData)
-            router.push("/dashboard")
+            handleSuccessLogin(response.data)
         } catch (error) {
             console.error("Login failed:", error)
             throw error
@@ -79,9 +85,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     }
 
+    const verifyMFA = async (mfaToken: string, token: string) => {
+        setIsLoading(true)
+        try {
+            const response = await api.post('/admin/auth/verify-mfa', { mfaToken, token });
+            handleSuccessLogin(response.data)
+        } catch (error) {
+            console.error("MFA Verification failed:", error)
+            throw error
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
     const logout = async () => {
         try {
-            await api.get('/consumer/auth/logout');
+            await api.get('/admin/auth/logout');
         } catch (error) {
             console.error("Logout error:", error);
         } finally {
@@ -99,8 +118,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 setUser,
                 isLoading,
                 login,
+                verifyMFA,
                 logout,
-                isAuthenticated: !!user,
+                isAuthenticated: !!user
             }}
         >
             {children}
