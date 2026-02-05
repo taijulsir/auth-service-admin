@@ -2,6 +2,7 @@
 
 import { ThemeToggle } from "@/components/theme-toggle"
 import { UserNav } from "@/components/layout/user-nav"
+import { NotificationCenter } from "@/components/layout/notification-center"
 import {
     Breadcrumb,
     BreadcrumbItem,
@@ -47,6 +48,7 @@ export function Navbar() {
                 </Breadcrumb>
             </div>
             <div className="flex items-center gap-4">
+                <NotificationCenter />
                 <ThemeToggle />
                 <UserNav />
             </div>

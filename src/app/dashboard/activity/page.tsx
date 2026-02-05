@@ -10,6 +10,7 @@ import { Loader2 } from "lucide-react"
 import { useAxiosPrivate } from "@/hooks/use-axios-private"
 import { auditService } from "@/lib/api/services/audit.service"
 import { toast } from "sonner"
+import { useAuth } from "@/context/auth-context"
 
 interface ActivityLog {
     _id: string
@@ -65,9 +66,11 @@ const columns: ColumnDef<ActivityLog>[] = [
 ]
 
 export default function ActivityLogsPage() {
+    const { user } = useAuth()
     const [logs, setLogs] = useState<ActivityLog[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const axiosPrivate = useAxiosPrivate()
+    const isAdmin = user?.roles?.includes(5150)
 
     useEffect(() => {
         const fetchLogs = async () => {
@@ -89,8 +92,14 @@ export default function ActivityLogsPage() {
         <DashboardLayout>
             <div className="flex flex-col gap-8">
                 <div>
-                    <h2 className="text-3xl font-bold tracking-tight">Activity Logs</h2>
-                    <p className="text-muted-foreground">Detailed history of all administrative actions and system events.</p>
+                    <h2 className="text-3xl font-bold tracking-tight">
+                        {isAdmin ? "System Activity Logs" : "My Activity History"}
+                    </h2>
+                    <p className="text-muted-foreground">
+                        {isAdmin 
+                            ? "Detailed history of all administrative actions and system events." 
+                            : "A record of your recent actions and login activity."}
+                    </p>
                 </div>
 
                 {isLoading ? (
