@@ -6,44 +6,63 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Role, PermissionResource, PermissionAction } from "@/types/role"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Plus, Save } from "lucide-react"
+import { Plus, Save, Loader2 } from "lucide-react"
+import { useAxiosPrivate } from "@/hooks/use-axios-private"
+import { roleService } from "@/lib/api/services/role.service"
+import { toast } from "sonner"
 
 const resources: PermissionResource[] = ["USERS", "ROLES", "PRODUCTS", "ORDERS", "ANALYTICS", "SETTINGS"]
 const actions: PermissionAction[] = ["READ", "CREATE", "EDIT", "DELETE", "MANAGE"]
 
-const initialRoles: Role[] = [
-    {
-        id: "admin",
-        name: "Admin",
-        description: "Full access to all resources and settings.",
-        permissions: resources.map(r => ({ resource: r, actions: ["MANAGE"] }))
-    },
-    {
-        id: "manager",
-        name: "Manager",
-        description: "Can manage products and orders. Limited user management.",
-        permissions: [
-            { resource: "USERS", actions: ["READ", "EDIT"] },
-            { resource: "PRODUCTS", actions: ["READ", "CREATE", "EDIT", "DELETE"] },
-            { resource: "ORDERS", actions: ["READ", "EDIT"] },
-            { resource: "ANALYTICS", actions: ["READ"] }
-        ]
-    },
-    {
-        id: "viewer",
-        name: "Viewer",
-        description: "Read-only access to most resources.",
-        permissions: resources.map(r => ({ resource: r, actions: ["READ"] }))
-    }
-]
-
 export default function RolesPage() {
-    const [roles, setRoles] = useState<Role[]>(initialRoles)
-    const [activeRole, setActiveRole] = useState<string>(roles[0].id)
+    const [roles, setRoles] = useState<Role[]>([])
+    const [activeRole, setActiveRole] = useState<string>("")
+    const [isLoading, setIsLoading] = useState(true)
+    const axiosPrivate = useAxiosPrivate()
 
-    const currentRole = roles.find(r => r.id === activeRole)!
+    useEffect(() => {
+        const fetchRoles = async () => {
+            try {
+                const response = await roleService.getRoles()
+                const rolesData = response.roles || response
+                setRoles(rolesData)
+                if (rolesData.length > 0) {
+                    setActiveRole(rolesData[0].id)
+                }
+            } catch (error) {
+                console.error("Failed to fetch roles:", error)
+                toast.error("Failed to load roles")
+            } finally {
+                setIsLoading(false)
+            }
+        }
+
+        fetchRoles()
+    }, [axiosPrivate])
+
+    if (isLoading) {
+        return (
+            <DashboardLayout>
+                <div className="flex h-[400px] items-center justify-center">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+            </DashboardLayout>
+        )
+    }
+
+    if (roles.length === 0) {
+        return (
+            <DashboardLayout>
+                <div className="flex h-[400px] items-center justify-center">
+                    <p>No roles found.</p>
+                </div>
+            </DashboardLayout>
+        )
+    }
+
+    const currentRole = roles.find(r => r.id === activeRole) || roles[0]
 
     const hasPermission = (resource: PermissionResource, action: PermissionAction) => {
         const perm = currentRole.permissions.find(p => p.resource === resource)

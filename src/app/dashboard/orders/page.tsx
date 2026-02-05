@@ -1,59 +1,37 @@
+"use client"
+
+import { useEffect, useState } from "react"
 import DashboardLayout from "@/components/layout/dashboard-layout"
 import { DataTable } from "@/components/ui/data-table"
 import { columns } from "@/components/orders/columns"
 import { Order } from "@/types/order"
 import { Button } from "@/components/ui/button"
-import { Download, Filter } from "lucide-react"
-
-const mockOrders: Order[] = [
-    {
-        id: "ORD-1234",
-        customer: { name: "Alice Johnson", email: "alice@example.com" },
-        total: 249.99,
-        status: "COMPLETED",
-        paymentStatus: "PAID",
-        createdAt: "2024-01-20T11:45:00Z",
-        items: 3,
-    },
-    {
-        id: "ORD-1235",
-        customer: { name: "Bob Wilson", email: "bob@example.com" },
-        total: 1299.00,
-        status: "PROCESSING",
-        paymentStatus: "PAID",
-        createdAt: "2024-01-22T16:20:00Z",
-        items: 1,
-    },
-    {
-        id: "ORD-1236",
-        customer: { name: "Charlie Brown", email: "charlie@example.com" },
-        total: 89.00,
-        status: "PENDING",
-        paymentStatus: "UNPAID",
-        createdAt: "2024-01-25T08:00:00Z",
-        items: 2,
-    },
-    {
-        id: "ORD-1237",
-        customer: { name: "David Miller", email: "david@example.com" },
-        total: 549.00,
-        status: "CANCELLED",
-        paymentStatus: "UNPAID",
-        createdAt: "2024-01-26T10:30:00Z",
-        items: 4,
-    },
-    {
-        id: "ORD-1238",
-        customer: { name: "Eve Online", email: "eve@example.com" },
-        total: 99.00,
-        status: "COMPLETED",
-        paymentStatus: "PAID",
-        createdAt: "2024-01-27T14:15:00Z",
-        items: 1,
-    },
-]
+import { Download, Filter, Loader2 } from "lucide-react"
+import { useAxiosPrivate } from "@/hooks/use-axios-private"
+import { orderService } from "@/lib/api/services/order.service"
+import { toast } from "sonner"
 
 export default function OrdersPage() {
+    const [orders, setOrders] = useState<Order[]>([])
+    const [isLoading, setIsLoading] = useState(true)
+    const axiosPrivate = useAxiosPrivate()
+
+    useEffect(() => {
+        const fetchOrders = async () => {
+            try {
+                const response = await orderService.getOrders()
+                setOrders(response.orders || response)
+            } catch (error) {
+                console.error("Failed to fetch orders:", error)
+                toast.error("Failed to load orders")
+            } finally {
+                setIsLoading(false)
+            }
+        }
+
+        fetchOrders()
+    }, [axiosPrivate])
+
     return (
         <DashboardLayout>
             <div className="flex flex-col gap-8">
@@ -74,12 +52,18 @@ export default function OrdersPage() {
                     </div>
                 </div>
 
-                <DataTable
-                    columns={columns}
-                    data={mockOrders}
-                    filterColumn="id"
-                    filterPlaceholder="Search by Order ID..."
-                />
+                {isLoading ? (
+                    <div className="flex h-[400px] items-center justify-center">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                ) : (
+                    <DataTable
+                        columns={columns}
+                        data={orders}
+                        filterColumn="id"
+                        filterPlaceholder="Search by Order ID..."
+                    />
+                )}
             </div>
         </DashboardLayout>
     )

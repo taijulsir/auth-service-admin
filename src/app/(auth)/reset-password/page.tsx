@@ -24,7 +24,8 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
+import { authService } from "@/lib/api/services/auth.service"
 
 const resetPasswordSchema = z.object({
     password: z.string().min(8, {
@@ -41,6 +42,8 @@ const resetPasswordSchema = z.object({
 export default function ResetPasswordPage() {
     const [isLoading, setIsLoading] = useState(false)
     const router = useRouter()
+    const searchParams = useSearchParams()
+    const token = searchParams.get("token")
 
     const form = useForm<z.infer<typeof resetPasswordSchema>>({
         resolver: zodResolver(resetPasswordSchema),
@@ -51,13 +54,18 @@ export default function ResetPasswordPage() {
     })
 
     async function onSubmit(values: z.infer<typeof resetPasswordSchema>) {
+        if (!token) {
+            toast.error("Invalid or missing reset token.")
+            return
+        }
+
         setIsLoading(true)
         try {
-            console.log(values)
+            await authService.resetPassword(values.password, token)
             toast.success("Password reset successful!")
             router.push("/login")
-        } catch (error) {
-            toast.error("Failed to reset password. Please try again.")
+        } catch (error: any) {
+            toast.error(error?.response?.data?.message || "Failed to reset password. Please try again.")
             console.error(error)
         } finally {
             setIsLoading(false)

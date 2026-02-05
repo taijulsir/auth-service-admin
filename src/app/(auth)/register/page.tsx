@@ -27,6 +27,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
+import { authService } from "@/lib/api/services/auth.service"
 
 const registerSchema = z.object({
     name: z.string().min(2, {
@@ -63,12 +64,14 @@ export default function RegisterPage() {
     async function onSubmit(values: z.infer<typeof registerSchema>) {
         setIsLoading(true)
         try {
-            // Mock registration
-            console.log(values)
+            await authService.register({
+                email: values.email,
+                pwd: values.password
+            })
             toast.success("Registration successful! Please login.")
             router.push("/login")
-        } catch (error) {
-            toast.error("Registration failed. Please try again.")
+        } catch (error: any) {
+            toast.error(error?.response?.data?.message || "Registration failed. Please try again.")
             console.error(error)
         } finally {
             setIsLoading(false)

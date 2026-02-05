@@ -1,59 +1,37 @@
+"use client"
+
+import { useEffect, useState } from "react"
 import DashboardLayout from "@/components/layout/dashboard-layout"
 import { DataTable } from "@/components/ui/data-table"
 import { columns } from "@/components/products/columns"
 import { Product } from "@/types/product"
 import { Button } from "@/components/ui/button"
-import { Plus, Trash2, Download } from "lucide-react"
-
-const mockProducts: Product[] = [
-    {
-        id: "p1",
-        name: "MacBook Pro 14",
-        category: "Electronics",
-        price: 1999.00,
-        stock: 25,
-        status: "IN_STOCK",
-        updatedAt: "2024-01-25T10:00:00Z",
-    },
-    {
-        id: "p2",
-        name: "Dell XPS 13",
-        category: "Electronics",
-        price: 1299.00,
-        stock: 5,
-        status: "LOW_STOCK",
-        updatedAt: "2024-01-26T12:00:00Z",
-    },
-    {
-        id: "p3",
-        name: "Sony WH-1000XM5",
-        category: "Accessories",
-        price: 349.99,
-        stock: 0,
-        status: "OUT_OF_STOCK",
-        updatedAt: "2024-01-27T15:00:00Z",
-    },
-    {
-        id: "p4",
-        name: "Logitech MX Master 3S",
-        category: "Accessories",
-        price: 99.00,
-        stock: 50,
-        status: "IN_STOCK",
-        updatedAt: "2024-01-28T09:30:00Z",
-    },
-    {
-        id: "p5",
-        name: "Keychron K2 V2",
-        category: "Accessories",
-        price: 89.00,
-        stock: 12,
-        status: "IN_STOCK",
-        updatedAt: "2024-01-29T14:15:00Z",
-    },
-]
+import { Plus, Trash2, Download, Loader2 } from "lucide-react"
+import { useAxiosPrivate } from "@/hooks/use-axios-private"
+import { productService } from "@/lib/api/services/product.service"
+import { toast } from "sonner"
 
 export default function ProductsPage() {
+    const [products, setProducts] = useState<Product[]>([])
+    const [isLoading, setIsLoading] = useState(true)
+    const axiosPrivate = useAxiosPrivate()
+
+    useEffect(() => {
+        const fetchProducts = async () => {
+            try {
+                const response = await productService.getProducts()
+                setProducts(response.products || response)
+            } catch (error) {
+                console.error("Failed to fetch products:", error)
+                toast.error("Failed to load products")
+            } finally {
+                setIsLoading(false)
+            }
+        }
+
+        fetchProducts()
+    }, [axiosPrivate])
+
     return (
         <DashboardLayout>
             <div className="flex flex-col gap-8">
@@ -74,18 +52,24 @@ export default function ProductsPage() {
                     </div>
                 </div>
 
-                <DataTable
-                    columns={columns}
-                    data={mockProducts}
-                    filterColumn="name"
-                    filterPlaceholder="Filter products..."
-                    topActions={
-                        <Button variant="outline" size="sm" className="h-8">
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Bulk Delete
-                        </Button>
-                    }
-                />
+                {isLoading ? (
+                    <div className="flex h-[400px] items-center justify-center">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                ) : (
+                    <DataTable
+                        columns={columns}
+                        data={products}
+                        filterColumn="name"
+                        filterPlaceholder="Filter products..."
+                        topActions={
+                            <Button variant="outline" size="sm" className="h-8">
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Bulk Delete
+                            </Button>
+                        }
+                    />
+                )}
             </div>
         </DashboardLayout>
     )

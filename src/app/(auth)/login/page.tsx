@@ -108,6 +108,27 @@ export default function LoginPage() {
                             </Button>
                         </form>
                     </Form>
+                    <div className="relative my-4">
+                        <div className="absolute inset-0 flex items-center">
+                            <span className="w-full border-t" />
+                        </div>
+                        <div className="relative flex justify-center text-xs uppercase">
+                            <span className="bg-slate-50 dark:bg-slate-900 px-2 text-muted-foreground">
+                                Or continue with
+                            </span>
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                        <Button variant="outline" className="w-full" onClick={() => window.location.href = 'http://localhost:5000/api/v1/auth/google'}>
+                             Google
+                        </Button>
+                        <Button variant="outline" className="w-full" onClick={() => window.location.href = 'http://localhost:5000/api/v1/auth/facebook'}>
+                             Facebook
+                        </Button>
+                        <Button variant="outline" className="w-full" onClick={() => window.location.href = 'http://localhost:5000/api/v1/auth/x'}>
+                             X
+                        </Button>
+                    </div>
                 </CardContent>
                 <CardFooter className="flex flex-col gap-2">
                     <div className="text-sm text-center text-muted-foreground">

@@ -1,72 +1,39 @@
+"use client"
+
+import { useEffect, useState } from "react"
 import DashboardLayout from "@/components/layout/dashboard-layout"
 import { DataTable } from "@/components/ui/data-table"
 import { columns } from "@/components/users/columns"
 import { User } from "@/types/user"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Plus, Trash2 } from "lucide-react"
-
-const mockUsers: User[] = [
-    {
-        id: "1",
-        name: "Admin User",
-        email: "admin@dashboard.com",
-        role: "ADMIN",
-        status: "ACTIVE",
-        createdAt: "2024-01-01T10:00:00Z",
-        lastLogin: "2024-01-31T15:00:00Z",
-    },
-    {
-        id: "2",
-        name: "Manager One",
-        email: "manager@dashboard.com",
-        role: "MANAGER",
-        status: "ACTIVE",
-        createdAt: "2024-01-05T12:00:00Z",
-    },
-    {
-        id: "3",
-        name: "John Doe",
-        email: "john@example.com",
-        role: "USER",
-        status: "PENDING",
-        createdAt: "2024-01-10T09:30:00Z",
-    },
-    {
-        id: "4",
-        name: "Jane Smith",
-        email: "jane@example.com",
-        role: "USER",
-        status: "SUSPENDED",
-        createdAt: "2024-01-15T14:15:00Z",
-    },
-    {
-        id: "5",
-        name: "Alice Johnson",
-        email: "alice@example.com",
-        role: "USER",
-        status: "ACTIVE",
-        createdAt: "2024-01-20T11:45:00Z",
-    },
-    {
-        id: "6",
-        name: "Bob Wilson",
-        email: "bob@example.com",
-        role: "USER",
-        status: "ACTIVE",
-        createdAt: "2024-01-22T16:20:00Z",
-    },
-    {
-        id: "7",
-        name: "Charlie Brown",
-        email: "charlie@example.com",
-        role: "MANAGER",
-        status: "ACTIVE",
-        createdAt: "2024-01-25T08:00:00Z",
-    },
-]
+import { Plus, Trash2, Loader2 } from "lucide-react"
+import { useAxiosPrivate } from "@/hooks/use-axios-private"
+import { userService } from "@/lib/api/services/user.service"
+import { toast } from "sonner"
 
 export default function UsersPage() {
+    const [users, setUsers] = useState<User[]>([])
+    const [isLoading, setIsLoading] = useState(true)
+    const axiosPrivate = useAxiosPrivate()
+
+    useEffect(() => {
+        const fetchUsers = async () => {
+            try {
+                const response = await userService.getUsers()
+                // Ensure users matches the state format
+                setUsers(response.users || response)
+            } catch (error) {
+                console.error("Failed to fetch users:", error)
+                toast.error("Failed to load users")
+            } finally {
+                setIsLoading(false)
+            }
+        }
+
+        fetchUsers()
+    }, [axiosPrivate])
+
     return (
         <DashboardLayout>
             <div className="flex flex-col gap-8">
@@ -81,20 +48,26 @@ export default function UsersPage() {
                     </Button>
                 </div>
 
-                <DataTable
-                    columns={columns}
-                    data={mockUsers}
-                    filterColumn="email"
-                    filterPlaceholder="Filter by email..."
-                    topActions={
-                        <div className="flex gap-2">
-                            <Button variant="outline" size="sm" className="h-8">
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Bulk Delete
-                            </Button>
-                        </div>
-                    }
-                />
+                {isLoading ? (
+                    <div className="flex h-[400px] items-center justify-center">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                ) : (
+                    <DataTable
+                        columns={columns}
+                        data={users}
+                        filterColumn="email"
+                        filterPlaceholder="Filter by email..."
+                        topActions={
+                            <div className="flex gap-2">
+                                <Button variant="outline" size="sm" className="h-8">
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    Bulk Delete
+                                </Button>
+                            </div>
+                        }
+                    />
+                )}
             </div>
         </DashboardLayout>
     )

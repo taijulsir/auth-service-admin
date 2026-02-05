@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react"
 import { useRouter } from "next/navigation"
 import Cookies from "js-cookie"
+import api from "../lib/api/axios"
 
 export type Role = "ADMIN" | "MANAGER" | "USER"
 
@@ -12,10 +13,12 @@ interface User {
     email: string
     role: Role
     avatar?: string
+    accessToken?: string
 }
 
 interface AuthContextType {
     user: User | null
+    setUser: React.Dispatch<React.SetStateAction<User | null>>
     isLoading: boolean
     login: (email: string, password: string) => Promise<void>
     logout: () => void
@@ -30,16 +33,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const router = useRouter()
 
     useEffect(() => {
-        // Mock user check from local storage or session
+        // We shouldn't store User in localStorage if it contains sensitive data,
+        // but for now, we'll keep it for persistence of basic info.
+        // The middleware uses "jwt" or specific cookie for session check.
         const checkAuth = async () => {
             try {
                 const storedUser = localStorage.getItem("auth_user")
-                if (storedUser && Cookies.get("auth_session")) {
+                if (storedUser) {
                     setUser(JSON.parse(storedUser))
-                } else {
-                    // If cookie is missing, clear local storage
-                    localStorage.removeItem("auth_user")
-                    setUser(null)
                 }
             } catch (error) {
                 console.error("Failed to parse stored user", error)
@@ -54,39 +55,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const login = async (email: string, password: string) => {
         setIsLoading(true)
         try {
-            // Mock login for now
-            // Logic for backend integration goes here
-            const mockUser: User = {
-                id: "1",
-                name: "Admin User",
-                email: email,
-                role: "ADMIN",
-                avatar: ""
+            const response = await api.post('/consumer/auth/login', { email, password });
+            
+            const userData: User = {
+                id: response.data.user.id || response.data.user._id,
+                name: response.data.user.name || 'User',
+                email: response.data.user.email,
+                role: response.data.user.roles[0] === 2001 ? "ADMIN" : "USER", // Map numeric roles to strings if needed
+                avatar: response.data.user.avatar,
+                accessToken: response.data.accessToken
             }
 
-            // Set session cookie for middleware
-            Cookies.set("auth_session", "true", { expires: 1 }) // 1 day
-            localStorage.setItem("auth_user", JSON.stringify(mockUser))
-            setUser(mockUser)
+            // Set session cookie for middleware (backend sets the refresh token cookie)
+            Cookies.set("auth_session", "true", { expires: 1 })
+            localStorage.setItem("auth_user", JSON.stringify(userData))
+            setUser(userData)
             router.push("/dashboard")
         } catch (error) {
+            console.error("Login failed:", error)
             throw error
         } finally {
             setIsLoading(false)
         }
     }
 
-    const logout = () => {
-        Cookies.remove("auth_session")
-        localStorage.removeItem("auth_user")
-        setUser(null)
-        router.push("/login")
+    const logout = async () => {
+        try {
+            await api.get('/consumer/auth/logout');
+        } catch (error) {
+            console.error("Logout error:", error);
+        } finally {
+            Cookies.remove("auth_session")
+            localStorage.removeItem("auth_user")
+            setUser(null)
+            router.push("/login")
+        }
     }
 
     return (
         <AuthContext.Provider
             value={{
                 user,
+                setUser,
                 isLoading,
                 login,
                 logout,

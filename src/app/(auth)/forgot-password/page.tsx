@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
+import { authService } from "@/lib/api/services/auth.service"
 
 const forgotPasswordSchema = z.object({
     email: z.string().email({
@@ -47,12 +48,11 @@ export default function ForgotPasswordPage() {
     async function onSubmit(values: z.infer<typeof forgotPasswordSchema>) {
         setIsLoading(true)
         try {
-            // Mock forgot password request
-            console.log(values)
+            await authService.forgotPassword(values.email)
             setIsSubmitted(true)
             toast.success("Reset link sent to your email!")
-        } catch (error) {
-            toast.error("Failed to send reset link. Please try again.")
+        } catch (error: any) {
+            toast.error(error?.response?.data?.message || "Failed to send reset link. Please try again.")
             console.error(error)
         } finally {
             setIsLoading(false)
