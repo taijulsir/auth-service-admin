@@ -12,6 +12,7 @@ import {
     ShieldCheck,
     Package,
     History,
+    Bell,
     Menu,
     ChevronLeft
 } from "lucide-react"
@@ -48,6 +49,11 @@ const sidebarItems = [
         title: "Analytics",
         href: "/dashboard/analytics",
         icon: BarChart3,
+    },
+    {
+        title: "Notifications",
+        href: "/dashboard/notifications",
+        icon: Bell,
     },
     {
         title: "Activity Logs",
